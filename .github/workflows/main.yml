@@ -9,19 +9,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: 🧩 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: Install dependencies
-        run: npm ci
+      - name: 📦 Install dependencies
+        run: npm install
 
-      - name: Start bot with PM2
+      - name: 🚀 Start bot with PM2
         run: |
           npm install -g pm2
           pm2 start ecosystem.config.js --name money-heist-bot --update-env
           pm2 list
+
+      - name: ✅ Check running processes
+        run: pm2 status
