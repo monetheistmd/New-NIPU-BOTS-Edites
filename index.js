@@ -1,84 +1,74 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = require('@whiskeysockets/baileys');
-const P = require('pino');
-const express = require('express');
-const fs = require('fs-extra');
-const config = require('./config');
-const { exec } = require('child_process');
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, Browsers } = require("@whiskeysockets/baileys");
+const P = require("pino");
+const fs = require("fs-extra");
+const { exec } = require("child_process");
+const express = require("express");
+const config = require("./config");
 
 const app = express();
-const PORT = config.PORT || 8000;
+const port = process.env.PORT || 8000;
 
 async function connectToWA() {
-  const authDir = './DILALK';
-  await fs.ensureDir(authDir);
-  const { state, saveCreds } = await useMultiFileAuthState(authDir);
+  const { state, saveCreds } = await useMultiFileAuthState("./DILALK");
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
-    logger: P({ level: 'silent' }),
-    browser: Browsers.macOS('Safari'),
-    printQRInTerminal: false, // we’ll use pair code
+    logger: P({ level: "silent" }),
+    printQRInTerminal: false,
+    browser: Browsers.macOS("Safari"),
     auth: state,
     version
   });
 
-  // Pair code login method
-  if (!sock.authState.creds.registered) {
-    const phoneNumber = config.OWNER_NUMBER;
-    console.log(`\n📱 Enter this on your WhatsApp -> Linked Devices -> Link with phone number`);
-    console.log(`Requesting pair code for: ${phoneNumber}`);
-    const code = await sock.requestPairingCode(phoneNumber);
-    console.log(`\n🔐 Pair Code: ${code}\n`);
-  }
-
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
-    if (connection === 'open') {
-      console.log('✅ Connected to WhatsApp!');
-    } else if (connection === 'close') {
+  sock.ev.on("connection.update", (update) => {
+    const { connection, lastDisconnect } = update || {};
+    if (connection === "open") {
+      console.log("✅ Money Heist MD Connected!");
+    } else if (connection === "close") {
       const reason = lastDisconnect?.error?.output?.statusCode;
       if (reason !== DisconnectReason.loggedOut) {
-        console.log('⚠️ Reconnecting...');
+        console.log("⚠️ Connection closed, reconnecting...");
         connectToWA();
       } else {
-        console.log('❌ Logged out. Delete DILALK folder and re-pair.');
+        console.log("❌ Logged out from WhatsApp.");
       }
     }
   });
 
-  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on("creds.update", saveCreds);
 
-  // Message Handler
-  sock.ev.on('messages.upsert', async (m) => {
-    const msg = m.messages[0];
-    if (!msg.message) return;
-
-    const from = msg.key.remoteJid;
-    const sender = msg.pushName || 'Unknown';
-    const text =
-      msg.message.conversation ||
-      msg.message.extendedTextMessage?.text ||
-      '';
-
-    if (!text) return;
-    console.log(`💬 [${sender}]: ${text}`);
-
+  sock.ev.on("messages.upsert", async (m) => {
     try {
-      if (text.toLowerCase() === 'ping') {
-        await sock.sendMessage(from, { text: 'pong 🏓' });
-      } else if (text.toLowerCase() === 'alive') {
-        await sock.sendMessage(from, { text: `${config.BOT_NAME} is alive now 🤍` });
-      } else if (text.toLowerCase() === 'restart' && from.includes(config.OWNER_NUMBER)) {
-        await sock.sendMessage(from, { text: 'Restarting bot...' });
-        exec('pm2 restart all');
+      const msg = m.messages[0];
+      if (!msg.message) return;
+      console.log(msg);
+
+      const from = msg.key.remoteJid;
+      const sender = msg.key.participant || msg.key.remoteJid;
+      const pushname = msg.pushName || "User";
+      const body =
+        msg.message.conversation ||
+        msg.message.extendedTextMessage?.text ||
+        msg.message.imageMessage?.caption ||
+        "";
+
+      const body_text = body.trim().toLowerCase();
+      console.log(`[📩] ${pushname}: ${body_text}`);
+
+      if (body_text === "ping") {
+        await sock.sendMessage(from, { text: "pong 🏓" });
+      } else if (body_text === "alive") {
+        await sock.sendMessage(from, { text: "✅ Alive now 🤍" });
       }
+
     } catch (err) {
-      console.error('⚠️ Error handling message:', err);
+      console.error("❌ Error in message:", err);
     }
   });
 }
 
 connectToWA();
 
-app.get('/', (req, res) => res.send('Money Heist Bot is running ✅'));
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Express server to keep alive (for Render etc.)
+app.get("/", (req, res) => res.send("✅ Money Heist MD Bot is Running"));
+app.listen(port, () => console.log(`🌐 HTTP Server Running on ${port}`));
