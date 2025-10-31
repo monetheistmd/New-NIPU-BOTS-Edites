@@ -1,0 +1,18 @@
+{
+  "name": "money-heist-md-bot",
+  "version": "1.0.0",
+  "description": "Simple WhatsApp bot using Baileys + Pair Code system (no MongoDB).",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:pm2": "pm2 start ecosystem.config.js --only money-heist-bot --update-env"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.5.0",
+    "express": "^4.18.2",
+    "pino": "^8.8.0",
+    "qrcode-terminal": "^0.12.0",
+    "fs-extra": "^11.1.1",
+    "megajs": "^4.7.0"
+  }
+}
